@@ -1,0 +1,26 @@
+{
+  "status": "success",
+  "msg": "success",
+  "data": {
+    "id": "745273",
+    "name": "Test Founder",
+    "userName": "testfounder",
+    "location": "San Francisco",
+    "url": "https://t.co/abc",
+    "description": "Building things. Opinions are posts, not advice.",
+    "protected": false,
+    "isVerified": false,
+    "isBlueVerified": true,
+    "verifiedType": null,
+    "followers": 48211,
+    "following": 812,
+    "favouritesCount": 9003,
+    "statusesCount": 14022,
+    "mediaCount": 402,
+    "createdAt": "Tue Feb 20 14:35:54 +0000 2007",
+    "coverPicture": "https://pbs.twimg.com/profile_banners/745273/cover.jpg",
+    "profilePicture": "https://pbs.twimg.com/profile_images/745273/avatar.jpg",
+    "canDm": false,
+    "pinnedTweetIds": ["1900000000000000001"]
+  }
+}

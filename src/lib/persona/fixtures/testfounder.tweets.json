@@ -1,0 +1,382 @@
+[
+  {
+    "id": "fix-000",
+    "handle": "testfounder",
+    "text": "Most pricing pages are written for the person who built the product, not the person buying it.",
+    "createdAt": "2026-09-16T12:00:00.000Z",
+    "kind": "original",
+    "isReply": false,
+    "inReplyToId": null,
+    "conversationId": "conv-0",
+    "quoteText": null,
+    "url": "https://x.com/testfounder/status/fix-000",
+    "metrics": {
+      "likes": 400,
+      "replies": 10,
+      "reposts": 20,
+      "quotes": 0,
+      "views": 20000
+    }
+  },
+  {
+    "id": "fix-001",
+    "handle": "testfounder",
+    "text": "Disagree. Churn is a symptom, not the disease. Fix activation and half your retention charts fix themselves.",
+    "createdAt": "2026-09-15T12:00:00.000Z",
+    "kind": "reply",
+    "isReply": true,
+    "inReplyToId": "other-1",
+    "conversationId": "conv-1",
+    "quoteText": null,
+    "url": "https://x.com/testfounder/status/fix-001",
+    "metrics": {
+      "likes": 437,
+      "replies": 11,
+      "reposts": 23,
+      "quotes": 1,
+      "views": 21500
+    }
+  },
+  {
+    "id": "fix-002",
+    "handle": "testfounder",
+    "text": "This is the whole thesis in one screenshot.",
+    "createdAt": "2026-09-14T12:00:00.000Z",
+    "kind": "quote",
+    "isReply": false,
+    "inReplyToId": null,
+    "conversationId": "conv-2",
+    "quoteText": "Seed rounds are now just a tax on impatience",
+    "url": "https://x.com/testfounder/status/fix-002",
+    "metrics": {
+      "likes": 474,
+      "replies": 12,
+      "reposts": 26,
+      "quotes": 2,
+      "views": 23000
+    }
+  },
+  {
+    "id": "fix-003",
+    "handle": "testfounder",
+    "text": "If your onboarding needs a loom video, your onboarding needs a rewrite.",
+    "createdAt": "2026-09-13T12:00:00.000Z",
+    "kind": "original",
+    "isReply": false,
+    "inReplyToId": null,
+    "conversationId": "conv-3",
+    "quoteText": null,
+    "url": "https://x.com/testfounder/status/fix-003",
+    "metrics": {
+      "likes": 511,
+      "replies": 13,
+      "reposts": 29,
+      "quotes": 3,
+      "views": 24500
+    }
+  },
+  {
+    "id": "fix-004",
+    "handle": "testfounder",
+    "text": "Hiring ahead of revenue is a bet that you can sell faster than you can panic. Most people lose it.",
+    "createdAt": "2026-09-11T12:00:00.000Z",
+    "kind": "original",
+    "isReply": false,
+    "inReplyToId": null,
+    "conversationId": "conv-4",
+    "quoteText": null,
+    "url": "https://x.com/testfounder/status/fix-004",
+    "metrics": {
+      "likes": 548,
+      "replies": 14,
+      "reposts": 32,
+      "quotes": 4,
+      "views": 26000
+    }
+  },
+  {
+    "id": "fix-005",
+    "handle": "testfounder",
+    "text": "Every founder I know who raised at a silly valuation in 2021 spent 2023 explaining it. Ship revenue instead.",
+    "createdAt": "2026-09-08T12:00:00.000Z",
+    "kind": "original",
+    "isReply": false,
+    "inReplyToId": null,
+    "conversationId": "conv-5",
+    "quoteText": null,
+    "url": "https://x.com/testfounder/status/fix-005",
+    "metrics": {
+      "likes": 585,
+      "replies": 15,
+      "reposts": 35,
+      "quotes": 5,
+      "views": 27500
+    }
+  },
+  {
+    "id": "fix-006",
+    "handle": "testfounder",
+    "text": "\"We will fix pricing after launch\" is how you get a year of bad data.",
+    "createdAt": "2026-09-05T12:00:00.000Z",
+    "kind": "original",
+    "isReply": false,
+    "inReplyToId": null,
+    "conversationId": "conv-6",
+    "quoteText": null,
+    "url": "https://x.com/testfounder/status/fix-006",
+    "metrics": {
+      "likes": 622,
+      "replies": 16,
+      "reposts": 38,
+      "quotes": 6,
+      "views": 29000
+    }
+  },
+  {
+    "id": "fix-007",
+    "handle": "testfounder",
+    "text": "Support tickets are free product research and almost nobody reads them.",
+    "createdAt": "2026-09-02T12:00:00.000Z",
+    "kind": "original",
+    "isReply": false,
+    "inReplyToId": null,
+    "conversationId": "conv-7",
+    "quoteText": null,
+    "url": "https://x.com/testfounder/status/fix-007",
+    "metrics": {
+      "likes": 659,
+      "replies": 17,
+      "reposts": 41,
+      "quotes": 7,
+      "views": 30500
+    }
+  },
+  {
+    "id": "fix-008",
+    "handle": "testfounder",
+    "text": "No. A design partner is not a customer until money moves.",
+    "createdAt": "2026-08-30T12:00:00.000Z",
+    "kind": "reply",
+    "isReply": true,
+    "inReplyToId": "other-8",
+    "conversationId": "conv-8",
+    "quoteText": null,
+    "url": "https://x.com/testfounder/status/fix-008",
+    "metrics": {
+      "likes": 696,
+      "replies": 18,
+      "reposts": 44,
+      "quotes": 8,
+      "views": 32000
+    }
+  },
+  {
+    "id": "fix-009",
+    "handle": "testfounder",
+    "text": "The best growth channel is a product people can explain to a coworker in one sentence.",
+    "createdAt": "2026-08-26T12:00:00.000Z",
+    "kind": "original",
+    "isReply": false,
+    "inReplyToId": null,
+    "conversationId": "conv-9",
+    "quoteText": null,
+    "url": "https://x.com/testfounder/status/fix-009",
+    "metrics": {
+      "likes": 733,
+      "replies": 19,
+      "reposts": 47,
+      "quotes": 9,
+      "views": 33500
+    }
+  },
+  {
+    "id": "fix-010",
+    "handle": "testfounder",
+    "text": "Annual plans hide churn for exactly twelve months.",
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "kind": "original",
+    "isReply": false,
+    "inReplyToId": null,
+    "conversationId": "conv-10",
+    "quoteText": null,
+    "url": "https://x.com/testfounder/status/fix-010",
+    "metrics": {
+      "likes": 770,
+      "replies": 20,
+      "reposts": 50,
+      "quotes": 10,
+      "views": 35000
+    }
+  },
+  {
+    "id": "fix-011",
+    "handle": "testfounder",
+    "text": "Stop asking for feedback. Ask what they did last time they had the problem.",
+    "createdAt": "2026-08-14T12:00:00.000Z",
+    "kind": "original",
+    "isReply": false,
+    "inReplyToId": null,
+    "conversationId": "conv-11",
+    "quoteText": null,
+    "url": "https://x.com/testfounder/status/fix-011",
+    "metrics": {
+      "likes": 807,
+      "replies": 21,
+      "reposts": 53,
+      "quotes": 11,
+      "views": 36500
+    }
+  },
+  {
+    "id": "fix-012",
+    "handle": "testfounder",
+    "text": "Enterprise sales is just patience with a CRM attached.",
+    "createdAt": "2026-08-07T12:00:00.000Z",
+    "kind": "original",
+    "isReply": false,
+    "inReplyToId": null,
+    "conversationId": "conv-12",
+    "quoteText": null,
+    "url": "https://x.com/testfounder/status/fix-012",
+    "metrics": {
+      "likes": 844,
+      "replies": 22,
+      "reposts": 56,
+      "quotes": 12,
+      "views": 38000
+    }
+  },
+  {
+    "id": "fix-013",
+    "handle": "testfounder",
+    "text": "If two people on the team describe the product differently, the positioning is the bug.",
+    "createdAt": "2026-07-31T12:00:00.000Z",
+    "kind": "original",
+    "isReply": false,
+    "inReplyToId": null,
+    "conversationId": "conv-13",
+    "quoteText": null,
+    "url": "https://x.com/testfounder/status/fix-013",
+    "metrics": {
+      "likes": 881,
+      "replies": 23,
+      "reposts": 59,
+      "quotes": 13,
+      "views": 39500
+    }
+  },
+  {
+    "id": "fix-014",
+    "handle": "testfounder",
+    "text": "Raising money is not a milestone. Shipping something people pay for is a milestone.",
+    "createdAt": "2026-07-17T12:00:00.000Z",
+    "kind": "original",
+    "isReply": false,
+    "inReplyToId": null,
+    "conversationId": "conv-14",
+    "quoteText": null,
+    "url": "https://x.com/testfounder/status/fix-014",
+    "metrics": {
+      "likes": 918,
+      "replies": 24,
+      "reposts": 62,
+      "quotes": 14,
+      "views": 41000
+    }
+  },
+  {
+    "id": "fix-015",
+    "handle": "testfounder",
+    "text": "Half of what we call \"technical debt\" is just a decision nobody wrote down.",
+    "createdAt": "2026-07-04T12:00:00.000Z",
+    "kind": "original",
+    "isReply": false,
+    "inReplyToId": null,
+    "conversationId": "conv-15",
+    "quoteText": null,
+    "url": "https://x.com/testfounder/status/fix-015",
+    "metrics": {
+      "likes": 955,
+      "replies": 25,
+      "reposts": 65,
+      "quotes": 15,
+      "views": 42500
+    }
+  },
+  {
+    "id": "fix-016",
+    "handle": "testfounder",
+    "text": "Free tiers are a distribution strategy, not a pricing strategy. Know which one you are running.",
+    "createdAt": "2026-06-13T12:00:00.000Z",
+    "kind": "original",
+    "isReply": false,
+    "inReplyToId": null,
+    "conversationId": "conv-16",
+    "quoteText": null,
+    "url": "https://x.com/testfounder/status/fix-016",
+    "metrics": {
+      "likes": 992,
+      "replies": 26,
+      "reposts": 68,
+      "quotes": 16,
+      "views": 44000
+    }
+  },
+  {
+    "id": "fix-017",
+    "handle": "testfounder",
+    "text": "I was wrong about this last year. Usage-based pricing punishes your best customers unless you cap it.",
+    "createdAt": "2026-05-19T12:00:00.000Z",
+    "kind": "original",
+    "isReply": false,
+    "inReplyToId": null,
+    "conversationId": "conv-17",
+    "quoteText": null,
+    "url": "https://x.com/testfounder/status/fix-017",
+    "metrics": {
+      "likes": 1029,
+      "replies": 27,
+      "reposts": 71,
+      "quotes": 17,
+      "views": 45500
+    }
+  },
+  {
+    "id": "fix-018",
+    "handle": "testfounder",
+    "text": "Usage-based pricing is obviously correct. Charge for value delivered, not for seats warming chairs.",
+    "createdAt": "2025-08-12T12:00:00.000Z",
+    "kind": "original",
+    "isReply": false,
+    "inReplyToId": null,
+    "conversationId": "conv-18",
+    "quoteText": null,
+    "url": "https://x.com/testfounder/status/fix-018",
+    "metrics": {
+      "likes": 1066,
+      "replies": 28,
+      "reposts": 74,
+      "quotes": 18,
+      "views": 47000
+    }
+  },
+  {
+    "id": "fix-019",
+    "handle": "testfounder",
+    "text": "Founder mode is mostly a rebrand of paying attention.",
+    "createdAt": "2026-08-14T12:00:00.000Z",
+    "kind": "original",
+    "isReply": false,
+    "inReplyToId": null,
+    "conversationId": "conv-19",
+    "quoteText": null,
+    "url": "https://x.com/testfounder/status/fix-019",
+    "metrics": {
+      "likes": 1103,
+      "replies": 29,
+      "reposts": 77,
+      "quotes": 19,
+      "views": 48500
+    }
+  }
+]

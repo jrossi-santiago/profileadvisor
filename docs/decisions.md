@@ -56,3 +56,59 @@ Drizzle's SQL-first API than through a Prisma extension.
 statements, so drizzle-kit's transactional DDL and prepared statements cannot run over it; the
 direct connection is IPv6-only on new Supabase projects, so app runtime cannot rely on it. The
 postgres.js client must be constructed with `prepare: false` against the transaction pooler.
+
+## Phase 1
+
+**2026-09-17 — Response shapes taken from the published GetXAPI docs.** `/twitter/user/info`
+returns `{status, msg, data}`; `/twitter/user/tweets` returns `{tweets, has_more, next_cursor}`
+with X's legacy `createdAt` ("Mon Jan 12 13:44:55 +0000 2026"). Every field beyond `id` and `text`
+is optional in the Zod schema: the upstream is an unofficial reader and a missing `viewCount` must
+not fail an ingest.
+
+**2026-09-17 — A tweet with an unparseable date is dropped, not defaulted.** Defaulting to "now"
+would put an undated post at the top of a prompt whose entire recency rule depends on ordering.
+
+**2026-09-17 — Retweets are dropped; replies and quotes are kept.** BUILD.md's tweet mix. A plain
+retweet carries none of the account's own words, so an account that only retweets reads as zero
+usable tweets and is rejected with `no-substance` rather than compiled into an empty clone.
+Replies are where argument style actually shows, and quotes carry the quoted text for context.
+
+**2026-09-17 — A trailing t.co link is stripped from tweet text.** X appends one for media and
+quotes. It is pure token cost in a prompt. Links inside the body are kept — those are part of what
+the account said.
+
+**2026-09-17 — The model never supplies identity or counts.** `personaExtractionSchema` is the
+card minus handle, displayName, bio, profileUrl, compiledAt, and tweetCountUsed. The application
+merges those in. A model cannot rename the account it is describing or inflate how much it read.
+
+**2026-09-17 — A topic whose evidenceIds are not in the corpus is dropped.** A citation to a tweet
+that does not exist is a hallucination wearing a footnote. BUILD.md schedules this test for Phase
+2; it was cheap to enforce now and there is no reason to ship the weaker version first.
+
+**2026-09-17 — Compile failure degrades to a thin card rather than an error.** A model that times
+out or returns prose still leaves a usable product: chat runs off raw posts with no extracted
+positions, and the thin-record warning tells the user why the answers are cautious. The failure
+reason is stored in `persona_cards.compile_error`.
+
+**2026-09-17 — No LLM SDK.** Grok and OpenAI both speak the OpenAI chat-completions shape, so the
+provider is ~150 lines of fetch plus a hand-rolled SSE parse. One fewer dependency to track, and
+swapping providers is an env change.
+
+**2026-09-17 — Model ids live in env with placeholder defaults.** `XAI_CHAT_MODEL` defaults to
+`grok-4`. These have not been verified against a live account; set them to ids the key actually
+has access to.
+
+**2026-09-17 — "Why this answer" shows the injected posts, not model citations.** `buildPrompt`
+returns the ids it actually put in the prompt, and the route passes them back on
+`X-Injected-Tweet-Ids`. The panel says plainly that these were in context rather than claiming the
+model quoted them.
+
+**2026-09-17 — The simulation banner is a client component reading the pathname.** The first
+version took a handle prop and was rendered a second time by the persona page; two `sticky top-0`
+bars stacked and left both unreadable. One banner in the root layout, deriving the handle from
+`/t/{handle}`, keeps the disclosure legible and still impossible to route around.
+
+**2026-09-17 — A read-only fixture persona serves @testfounder when DATABASE_URL is absent.** It
+exists so the chat UI can be developed and reviewed without a database. It serves exactly one
+synthetic handle, is clearly labelled as a development fixture in the UI, and can never mask a
+broken write path for a real account.

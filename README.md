@@ -10,10 +10,10 @@ Build plan and phase gates live in [`BUILD.md`](./BUILD.md). Decisions made alon
 [`docs/decisions.md`](./docs/decisions.md). Per-phase shipping notes live in
 [`PHASE_NOTES.md`](./PHASE_NOTES.md).
 
-## Status: Phase 0 (skeleton)
+## Status: Phase 1 (manual-proof chat)
 
-The app boots, parses handles, and refuses to become anything else yet. It makes **no network
-calls** and needs **no API keys** to run.
+Ingest, persona compile, and streaming chat are wired end to end. Every unit is covered by tests
+that run with no network and no keys.
 
 ## Run it
 
@@ -21,17 +21,43 @@ Requires Node 22+ and pnpm 10+.
 
 ```bash
 pnpm install
-cp .env.example .env.local   # every value may stay blank in Phase 0
+cp .env.example .env.local
 pnpm dev                     # http://localhost:3000
 ```
+
+The app boots with an empty `.env.local`. Without keys: the UI renders, the handle parser works,
+`/t/testfounder` serves a synthetic development fixture, and the ingest and chat routes return a
+clear 503 telling you which key is missing.
 
 Other scripts:
 
 ```bash
-pnpm test        # vitest — handle parser unit tests
-pnpm typecheck   # tsc --noEmit
-pnpm build       # production build
+pnpm test         # vitest — 96 unit tests, no network
+pnpm typecheck    # tsc --noEmit
+pnpm build        # production build
+pnpm db:generate  # drizzle-kit: regenerate SQL from src/lib/db/schema.ts
+pnpm db:migrate   # drizzle-kit: apply migrations (uses DIRECT_DATABASE_URL)
 ```
+
+## Talk to @x with local keys
+
+1. **Database.** Set `DATABASE_URL` (Supabase transaction pooler, port 6543) and
+   `DIRECT_DATABASE_URL` (session pooler, port 5432). Then `pnpm db:migrate`.
+2. **Tweet ingest.** Set `GETXAPI_KEY` from https://docs.getxapi.com.
+3. **Chat model.** Set `XAI_API_KEY`, or `OPENAI_API_KEY` to use the fallback. Set
+   `XAI_CHAT_MODEL` to a model id your key can actually reach.
+4. `pnpm dev`, enter a handle, wait for the ingest, and you land on `/t/{handle}`.
+
+Or drive it without the UI:
+
+```bash
+curl -X POST localhost:3000/api/personas \
+  -H 'Content-Type: application/json' \
+  -d '{"handleOrUrl":"https://x.com/naval"}'
+```
+
+Each ingest logs its cost: `[usage] kind=ingest handle=naval units=5 cost=$0.0060`
+(one profile call plus one call per timeline page, at $0.001 each).
 
 ## What it does
 
@@ -59,24 +85,40 @@ pnpm build       # production build
 |---|---|
 | App | Next.js 16 (App Router) + TypeScript + Tailwind v4 |
 | Tests | Vitest |
-| DB | Postgres (Phase 1) |
-| Tweet ingest | GetXAPI (Phase 1) |
-| Chat model | xAI Grok via OpenAI-compatible completions, OpenAI fallback (Phase 1) |
+| DB | Postgres + Drizzle |
+| Tweet ingest | GetXAPI |
+| Chat model | xAI Grok via OpenAI-compatible completions, OpenAI fallback |
+| Validation | Zod — `PersonaCard` is only a card if it parses |
 | Auth / billing | Phase 4 only |
 
 ## Layout
 
 ```
 src/
-  app/          # routes: / (handle entry). /t/[handle] arrives in Phase 1
-  components/   # simulation banner, handle form
+  app/
+    api/personas/   # POST: handle -> fetch, store, compile
+    api/chat/       # POST: streaming reply, returns injected tweet ids
+    t/[handle]/     # persona preview + chat
+  components/       # banner, handle form, preview, chat
   lib/
-    x/          # handle parsing; GetXAPI client (Phase 1)
-    persona/    # schema, compile, prompts (Phase 1–2)
-    chat/       # system prompt builder, model provider (Phase 1)
-    db/         # Postgres access (Phase 1)
-  types/        # shared PersonaCard / StoredTweet contracts
+    x/              # handle parsing, GetXAPI client, response fixtures
+    persona/        # Zod schema, prompts, compile, store, ingest
+    chat/           # provider (Grok/OpenAI), system prompt builder
+    db/             # Drizzle schema + pooled client
+  types/            # shared PersonaCard / StoredTweet contracts
+drizzle/            # generated migration SQL
 ```
+
+## How a turn is grounded
+
+`POST /api/personas` reads up to `X_TWEET_CAP` usable posts (retweets dropped), stores them, and
+compiles a `PersonaCard` — voice, stated positions with confidence, current context, and known
+unknowns. If the compile fails or returns junk, a **thin card** is stored instead and chat still
+works off the raw posts.
+
+Each chat turn builds a system prompt from the card plus the newest `CHAT_RECENT_TWEETS` posts,
+and returns the ids it actually injected on `X-Injected-Tweet-Ids`. The "Why this answer" panel
+shows those posts — what was in context, not what the model claims it quoted.
 
 ## Environment
 

@@ -29,3 +29,48 @@ Append one section per phase: what shipped, what broke, keys required, remaining
 - No `/t/[handle]` route yet
 - `src/types/persona.ts` has types but no Zod schemas
 - Next 16 rewrote `tsconfig.json` on first build (`jsx: react-jsx`, added `.next/dev/types`)
+
+## Phase 1 — Manual-proof chat (2026-09-17)
+
+**Shipped**
+- `src/lib/x/getxapi.ts` — typed GetXAPI client: profile + cursor-paginated timeline, Zod-validated
+  against the published response shapes, retweets dropped, legacy X timestamps normalized to ISO,
+  cap and page limits from env, per-run cost attached
+- `src/lib/db` — Drizzle schema for profiles, tweets, persona_cards, threads, messages,
+  usage_events; postgres.js client with `prepare: false`; `drizzle/0000_*.sql` generated
+- `src/lib/persona` — Zod `PersonaCard`, compile prompt, one-shot LLM compile with a thin fallback,
+  ungrounded-topic pruning, store, and the ingest pipeline
+- `src/lib/chat` — Grok/OpenAI provider with hand-rolled SSE streaming, system prompt builder
+- `POST /api/personas`, `POST /api/chat` (streaming), `/t/[handle]` with preview + chat
+- "Why this answer" panel listing up to 3 injected source posts
+- Read-only fixture persona (@testfounder) so the UI runs with no database
+
+**Verified**
+- `pnpm test` → 96/96 green, no network
+- `pnpm typecheck` → clean; `pnpm build` → clean, 5 routes
+- Live error paths, checked against the running server:
+  - missing `GETXAPI_KEY` → 503 with the key name
+  - missing chat provider → 503 naming both env vars
+  - `https://x.com/home` → 400, "is an X site route, not an account"
+- Protected account → `protected` error (fixture test, fails closed before any timeline call)
+- Retweet-only timeline → 0 usable tweets → `no-substance`, not an empty clone
+- Fixture: a topic citing a tweet id outside the corpus is dropped from the card
+- Screenshotted `/t/testfounder` at 1440×950; fixed a real bug found there — two stacked sticky
+  banners had made the disclosure unreadable
+
+**Keys required** — `GETXAPI_KEY`, `XAI_API_KEY` (or `OPENAI_API_KEY`), `DATABASE_URL` +
+`DIRECT_DATABASE_URL`. None were available in the build environment, so everything below is
+untested against live services.
+
+**Not yet verified — needs keys**
+- Any real ingest. The client matches the documented shapes but has never seen a live response.
+- Model ids (`grok-4`, `grok-4-fast`) are placeholder defaults, not confirmed against an account.
+- The three BUILD.md acceptance checks that need a live model: do three handles feel distinct
+  within 5 messages; does the model say "no public take" off-topic; is the voice non-generic.
+- `db:migrate` against a real Postgres.
+
+**Known gaps / carried into Phase 2**
+- Tweet cap is 100 and `user/tweets_and_replies` is not pulled yet
+- No 24h compile cache — every POST re-ingests
+- No compile status states in the UI beyond a spinner label
+- Thread history is persisted but not reloaded into the UI on refresh

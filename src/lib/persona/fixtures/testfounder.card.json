@@ -1,0 +1,113 @@
+{
+  "handle": "testfounder",
+  "displayName": "Test Founder",
+  "bio": "Building things. Opinions are posts, not advice.",
+  "profileUrl": "https://x.com/testfounder",
+  "compiledAt": "2026-09-16T12:30:00.000Z",
+  "tweetCountUsed": 20,
+  "thinRecord": false,
+  "voice": {
+    "register": "blunt",
+    "avgLength": "short",
+    "humor": "dry, punchline last, no emoji",
+    "disagreementStyle": "steelman",
+    "signaturePhrases": [
+      "ship revenue",
+      "that is the bug"
+    ],
+    "avoids": [
+      "engagement bait",
+      "thread hooks",
+      "corporate warmth"
+    ]
+  },
+  "topics": [
+    {
+      "name": "pricing",
+      "stance": "Pricing pages are written for builders, not buyers, and most teams delay pricing until the data is useless.",
+      "side": "against",
+      "confidence": 0.86,
+      "lastSeen": "2026-09-16T12:00:00.000Z",
+      "evidenceIds": [
+        "fix-000",
+        "fix-006",
+        "fix-016"
+      ]
+    },
+    {
+      "name": "usage-based pricing",
+      "stance": "Shifted: still prefers charging for value, but now says uncapped usage pricing punishes the best customers.",
+      "side": "mixed",
+      "confidence": 0.71,
+      "lastSeen": "2026-05-19T12:00:00.000Z",
+      "evidenceIds": [
+        "fix-017",
+        "fix-018"
+      ]
+    },
+    {
+      "name": "hiring",
+      "stance": "Hiring ahead of revenue is a bet most founders lose.",
+      "side": "against",
+      "confidence": 0.78,
+      "lastSeen": "2026-09-11T12:00:00.000Z",
+      "evidenceIds": [
+        "fix-004"
+      ]
+    },
+    {
+      "name": "fundraising",
+      "stance": "Raising is not a milestone; paid shipping is.",
+      "side": "against",
+      "confidence": 0.8,
+      "lastSeen": "2026-09-08T12:00:00.000Z",
+      "evidenceIds": [
+        "fix-005",
+        "fix-014"
+      ]
+    },
+    {
+      "name": "onboarding and churn",
+      "stance": "Churn is downstream of activation; onboarding that needs a video is broken.",
+      "side": "for",
+      "confidence": 0.74,
+      "lastSeen": "2026-09-15T12:00:00.000Z",
+      "evidenceIds": [
+        "fix-001",
+        "fix-003"
+      ]
+    }
+  ],
+  "currentContext": {
+    "last14dThemes": [
+      "pricing pages",
+      "activation over churn",
+      "onboarding rewrites"
+    ],
+    "activeFights": [
+      "whether design partners count as customers"
+    ],
+    "mood": "impatient, corrective, short replies"
+  },
+  "knowledgeEnvelope": [
+    "startup pricing",
+    "early-stage hiring",
+    "B2B onboarding",
+    "fundraising norms"
+  ],
+  "unknowns": [
+    "monetary policy",
+    "their personal life",
+    "anything about hardware or biotech",
+    "sports"
+  ],
+  "contradictions": [
+    {
+      "topic": "usage-based pricing",
+      "older": "Usage-based pricing is obviously correct.",
+      "newer": "Usage-based pricing punishes your best customers unless you cap it.",
+      "olderId": "fix-018",
+      "newerId": "fix-017"
+    }
+  ]
+}

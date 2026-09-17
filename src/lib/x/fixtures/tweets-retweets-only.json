@@ -1,0 +1,39 @@
+{
+  "userName": "amplifier",
+  "userId": "555000",
+  "tweet_count": 4000,
+  "has_more": false,
+  "next_cursor": null,
+  "tweets": [
+    {
+      "type": "tweet",
+      "id": "1910000000000000001",
+      "text": "RT @someone: a take that is not theirs",
+      "retweetCount": 5,
+      "replyCount": 0,
+      "likeCount": 0,
+      "quoteCount": 0,
+      "viewCount": null,
+      "createdAt": "Mon Sep 15 13:44:55 +0000 2026",
+      "isReply": false,
+      "inReplyToId": null,
+      "conversationId": "1910000000000000001",
+      "quoted_tweet": null
+    },
+    {
+      "type": "tweet",
+      "id": "1910000000000000002",
+      "text": "RT @another: also not theirs",
+      "retweetCount": 2,
+      "replyCount": 0,
+      "likeCount": 0,
+      "quoteCount": 0,
+      "viewCount": null,
+      "createdAt": "Sun Sep 14 13:44:55 +0000 2026",
+      "isReply": false,
+      "inReplyToId": null,
+      "conversationId": "1910000000000000002",
+      "quoted_tweet": null
+    }
+  ]
+}

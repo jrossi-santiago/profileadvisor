@@ -1,0 +1,56 @@
+{
+  "userName": "testfounder",
+  "userId": "745273",
+  "tweet_count": 14022,
+  "has_more": false,
+  "next_cursor": null,
+  "tweets": [
+    {
+      "type": "tweet",
+      "id": "1900000000000000004",
+      "url": "https://x.com/testfounder/status/1900000000000000004",
+      "text": "This is the whole thesis in one screenshot.",
+      "retweetCount": 40,
+      "replyCount": 9,
+      "likeCount": 820,
+      "quoteCount": 5,
+      "viewCount": 61000,
+      "createdAt": "Sat Sep 13 11:05:42 +0000 2026",
+      "isReply": false,
+      "inReplyToId": null,
+      "conversationId": "1900000000000000004",
+      "quoted_tweet": null
+    },
+    {
+      "type": "tweet",
+      "id": "1900000000000000005",
+      "url": "https://x.com/testfounder/status/1900000000000000005",
+      "text": "Hiring is the only thing that compounds faster than debt.",
+      "retweetCount": 300,
+      "replyCount": 55,
+      "likeCount": 4100,
+      "quoteCount": 31,
+      "viewCount": 720000,
+      "createdAt": "Thu Mar 05 08:15:00 +0000 2026",
+      "isReply": false,
+      "inReplyToId": null,
+      "conversationId": "1900000000000000005",
+      "quoted_tweet": null
+    },
+    {
+      "type": "tweet",
+      "id": "1900000000000000006",
+      "text": "this one has an unparseable timestamp and must be skipped",
+      "retweetCount": 0,
+      "replyCount": 0,
+      "likeCount": 1,
+      "quoteCount": 0,
+      "viewCount": null,
+      "createdAt": "not a date at all",
+      "isReply": false,
+      "inReplyToId": null,
+      "conversationId": "1900000000000000006",
+      "quoted_tweet": null
+    }
+  ]
+}

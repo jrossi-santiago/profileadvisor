@@ -1,0 +1,26 @@
+{
+  "status": "success",
+  "msg": "success",
+  "data": {
+    "id": "998877",
+    "name": "Locked Account",
+    "userName": "lockedaccount",
+    "location": "",
+    "url": "",
+    "description": "tweets are protected",
+    "protected": true,
+    "isVerified": false,
+    "isBlueVerified": false,
+    "verifiedType": null,
+    "followers": 120,
+    "following": 300,
+    "favouritesCount": 40,
+    "statusesCount": 900,
+    "mediaCount": 3,
+    "createdAt": "Tue Feb 20 14:35:54 +0000 2007",
+    "coverPicture": null,
+    "profilePicture": "https://pbs.twimg.com/profile_images/998877/avatar.jpg",
+    "canDm": false,
+    "pinnedTweetIds": []
+  }
+}

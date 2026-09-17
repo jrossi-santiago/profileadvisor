@@ -26,7 +26,7 @@ export default function HomePage() {
       </section>
 
       <footer className="text-xs text-[color:var(--color-muted)]">
-        Phase 0 — skeleton only. No API calls are made from this screen.
+        Reads public posts through GetXAPI. It never posts, replies, or messages anyone.
       </footer>
     </main>
   );
