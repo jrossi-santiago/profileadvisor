@@ -86,3 +86,42 @@ Append one section per phase: what shipped, what broke, keys required, remaining
 - No 24h compile cache — every POST re-ingests
 - No compile status states in the UI beyond a spinner label
 - Thread history is persisted but not reloaded into the UI on refresh
+
+## Phase 2 — Ingest + persona compiler (2026-09-17)
+
+**Shipped**
+- `/twitter/user/tweets_and_replies` added to the client; both timelines walk under one shared page
+  budget and one `seen` set, so a post on both tabs is stored once
+- Tweet cap raised to 400 (`X_TWEET_CAP`), page cap 25 (`X_MAX_PAGES`), replies toggleable with
+  `X_INCLUDE_REPLIES`; cap, page count, and per-timeline contribution all logged per ingest
+- 24h compile cache (`src/lib/persona/cache.ts`), checked before the API client is constructed, so
+  a hit costs nothing and needs no key. `refresh: true` bypasses it.
+- `POST /api/personas` streams NDJSON progress (`fetching` → `compiling` → `ready`/`failed`) when
+  sent `Accept: application/x-ndjson`; plain JSON otherwise
+- Preview panel: avatar, bio, thin-record flag, 6–8 priority-ordered bullets, topics with
+  confidence bars, compile freshness, and a Refresh button that bypasses the cache
+
+**Verified**
+- `pnpm test` → 137 passed / 9 skipped offline; **151 passed** with a database
+- `pnpm typecheck`, `pnpm build` → clean
+- Live over HTTP against local Postgres:
+  - same handle twice inside 24h → `cached: true`, `pagesFetched: 0`, `[compile] cache hit … ageH=0.0`
+  - `refresh: true` → `[compile] cache miss … reason=refresh-requested cap=400 maxPages=25`, then
+    proceeds to fetch
+  - NDJSON stream emits `cached` then `ready`; a mid-stream failure arrives as a `failed` event
+- Fixture tests: a topic citing an id outside the corpus is dropped; 0 usable tweets → error, not
+  an empty clone; protected accounts fail closed before any timeline call
+- Screenshotted the preview at 1440×1100
+
+**Bug found by a test:** the 8-bullet cap was cutting "No public take on …" and "Has publicly
+changed position on …" in favour of humour and catchphrases. Bullets are now priority-ordered and
+a test asserts those two survive.
+
+**Still needs API keys** — every acceptance check that requires a live model or a live ingest:
+whether 5 live handles compile without hand-editing JSON, whether preview bullets contradict the
+last week of a real timeline, and the Phase 1 voice checks.
+
+**Carried into Phase 3**
+- No embeddings or retrieval; chat still stuffs the newest 40 posts
+- No Jev (Phase 2.5, optional)
+- Refresh re-reads the whole timeline rather than fetching only what is new

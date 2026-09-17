@@ -29,6 +29,7 @@ export function fixturePersona(handle: string, recentN: number): StoredPersona |
     tweets,
     compiledAt: card.compiledAt,
     tweetCountUsed: card.tweetCountUsed,
+    avatarUrl: null,
     source: "fixture",
   };
 }

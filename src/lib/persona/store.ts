@@ -20,6 +20,7 @@ export type StoredPersona = {
   tweets: StoredTweet[];
   compiledAt: string;
   tweetCountUsed: number;
+  avatarUrl: string | null;
   source: "database" | "fixture";
 };
 
@@ -123,6 +124,48 @@ export async function saveCard(input: {
   });
 }
 
+export type StoredCard = {
+  card: PersonaCard;
+  compiledAt: string;
+  tweetCountUsed: number;
+  thinRecord: boolean;
+};
+
+/**
+ * The stored card without its tweets. Used by the 24h cache, which needs
+ * compile freshness and the card itself but not the corpus.
+ */
+export async function loadCard(handleInput: string): Promise<StoredCard | null> {
+  const handle = canonicalHandle(handleInput);
+
+  if (!isDatabaseConfigured()) {
+    const fixture = hasFixturePersona(handle) ? fixturePersona(handle, 1) : null;
+    return fixture
+      ? {
+          card: fixture.card,
+          compiledAt: fixture.compiledAt,
+          tweetCountUsed: fixture.tweetCountUsed,
+          thinRecord: fixture.card.thinRecord,
+        }
+      : null;
+  }
+
+  const [row] = await getDb()
+    .select()
+    .from(personaCards)
+    .where(eq(personaCards.handle, handle))
+    .limit(1);
+
+  return row
+    ? {
+        card: row.card,
+        compiledAt: row.compiledAt.toISOString(),
+        tweetCountUsed: row.tweetCountUsed,
+        thinRecord: row.thinRecord,
+      }
+    : null;
+}
+
 export async function loadPersona(
   handleInput: string,
   recentN: number,
@@ -149,11 +192,18 @@ export async function loadPersona(
     .orderBy(desc(tweets.createdAt))
     .limit(recentN);
 
+  const [profileRow] = await db
+    .select({ avatarUrl: profiles.avatarUrl })
+    .from(profiles)
+    .where(eq(profiles.handle, handle))
+    .limit(1);
+
   return {
     card: cardRow.card,
     tweets: tweetRows.map(rowToTweet),
     compiledAt: cardRow.compiledAt.toISOString(),
     tweetCountUsed: cardRow.tweetCountUsed,
+    avatarUrl: profileRow?.avatarUrl ?? null,
     source: "database",
   };
 }

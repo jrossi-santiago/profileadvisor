@@ -10,8 +10,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { messages, personaCards, profiles, threads, tweets, usageEvents } from "@/lib/db/schema";
+import { decideCache } from "@/lib/persona/cache";
 import {
   ensureThread,
+  loadCard,
   loadPersona,
   loadThreadMessages,
   recordUsage,
@@ -152,5 +154,75 @@ describe.skipIf(!hasDatabase)("store against a real database", () => {
     expect(rows[0].kind).toBe("ingest");
     expect(rows[0].handle).toBe("testfounder");
     expect(rows[0].costUsd).toBeCloseTo(0.004, 5);
+  });
+});
+
+describe.skipIf(!hasDatabase)("compile cache against a real database", () => {
+  const persona = fixturePersona("testfounder", 100)!;
+
+  beforeAll(async () => {
+    await getDb().execute(
+      sql`truncate ${messages}, ${threads}, ${personaCards}, ${tweets}, ${profiles}, ${usageEvents}`,
+    );
+    await saveProfile(profile);
+    await saveTweets(persona.tweets);
+  });
+
+  it("reports no card before anything is compiled", async () => {
+    expect(await loadCard("testfounder")).toBeNull();
+    expect(decideCache({ compiledAt: null }).hit).toBe(false);
+  });
+
+  it("hits the cache for a card compiled just now", async () => {
+    await saveCard({
+      card: { ...persona.card, compiledAt: new Date().toISOString() },
+      sourceTweetIds: persona.tweets.map((t) => t.id),
+    });
+
+    const stored = await loadCard("testfounder");
+    expect(stored).not.toBeNull();
+    expect(decideCache({ compiledAt: stored!.compiledAt }).hit).toBe(true);
+  });
+
+  it("misses for a card compiled 25 hours ago", async () => {
+    const stale = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+    await saveCard({
+      card: { ...persona.card, compiledAt: stale },
+      sourceTweetIds: persona.tweets.map((t) => t.id),
+    });
+
+    const stored = await loadCard("testfounder");
+    const decision = decideCache({ compiledAt: stored!.compiledAt });
+    expect(decision.hit).toBe(false);
+    if (!decision.hit) expect(decision.reason).toBe("stale");
+  });
+
+  it("misses when refresh is requested on a fresh card", async () => {
+    await saveCard({
+      card: { ...persona.card, compiledAt: new Date().toISOString() },
+      sourceTweetIds: persona.tweets.map((t) => t.id),
+    });
+
+    const stored = await loadCard("testfounder");
+    const decision = decideCache({ compiledAt: stored!.compiledAt, refresh: true });
+    expect(decision.hit).toBe(false);
+    if (!decision.hit) expect(decision.reason).toBe("refresh-requested");
+  });
+
+  it("moves compiledAt forward on a recompile", async () => {
+    const before = (await loadCard("testfounder"))!.compiledAt;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    await saveCard({
+      card: { ...persona.card, compiledAt: new Date().toISOString() },
+      sourceTweetIds: persona.tweets.map((t) => t.id),
+    });
+
+    const after = (await loadCard("testfounder"))!.compiledAt;
+    expect(new Date(after).getTime()).toBeGreaterThan(new Date(before).getTime());
+
+    // A recompile replaces the row rather than accumulating cards.
+    const rows = await getDb().select().from(personaCards);
+    expect(rows).toHaveLength(1);
   });
 });

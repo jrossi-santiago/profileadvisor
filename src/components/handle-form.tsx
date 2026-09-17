@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { parseHandleOrUrl, profileUrl } from "@/lib/x/handle";
+import { progressLabel, readProgress } from "@/lib/persona/progress";
 
 type Status =
   | { state: "idle" }
@@ -26,18 +27,33 @@ export function HandleForm() {
     try {
       const response = await fetch("/api/personas", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/x-ndjson",
+        },
         body: JSON.stringify({ handleOrUrl: input.trim() }),
       });
-      const payload = await response.json();
 
-      if (!response.ok) {
+      if (!response.ok || !response.body) {
+        const payload = await response.json().catch(() => ({}));
         setStatus({ state: "error", message: payload.error ?? "Could not compile that account." });
         return;
       }
 
-      setStatus({ state: "working", message: "Compiling a public-voice card…" });
-      router.push(`/t/${payload.handle}`);
+      // Progress arrives as NDJSON; a `failed` event can follow a 200.
+      for await (const event of readProgress(response.body)) {
+        if (event.state === "failed") {
+          setStatus({ state: "error", message: event.error });
+          return;
+        }
+        setStatus({ state: "working", message: progressLabel(event) });
+        if (event.state === "ready") {
+          router.push(`/t/${event.handle}`);
+          return;
+        }
+      }
+
+      setStatus({ state: "error", message: "The compile stopped before it finished." });
     } catch (error) {
       setStatus({
         state: "error",

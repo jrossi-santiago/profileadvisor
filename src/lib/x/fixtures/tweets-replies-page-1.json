@@ -1,0 +1,57 @@
+{
+  "userName": "testfounder",
+  "userId": "745273",
+  "tweet_count": 14022,
+  "has_more": false,
+  "next_cursor": null,
+  "tweets": [
+    {
+      "type": "tweet",
+      "id": "1900000000000000001",
+      "url": "https://x.com/testfounder/status/1900000000000000001",
+      "text": "Most pricing pages are written for the person who built the product, not the person buying it.",
+      "retweetCount": 220,
+      "replyCount": 41,
+      "likeCount": 2900,
+      "quoteCount": 18,
+      "viewCount": 410322,
+      "createdAt": "Mon Sep 15 13:44:55 +0000 2026",
+      "isReply": false,
+      "inReplyToId": null,
+      "conversationId": "1900000000000000001",
+      "quoted_tweet": null
+    },
+    {
+      "type": "tweet",
+      "id": "1900000000000000010",
+      "url": "https://x.com/testfounder/status/1900000000000000010",
+      "text": "That is not what the data says. Show me the cohort, not the aggregate.",
+      "retweetCount": 3,
+      "replyCount": 12,
+      "likeCount": 190,
+      "quoteCount": 0,
+      "viewCount": 9800,
+      "createdAt": "Mon Sep 15 11:02:00 +0000 2026",
+      "isReply": true,
+      "inReplyToId": "1899000000000000000",
+      "conversationId": "1899000000000000000",
+      "quoted_tweet": null
+    },
+    {
+      "type": "tweet",
+      "id": "1900000000000000011",
+      "url": "https://x.com/testfounder/status/1900000000000000011",
+      "text": "Fair. I would steelman it as: the pricing was fine, the packaging was not.",
+      "retweetCount": 1,
+      "replyCount": 4,
+      "likeCount": 77,
+      "quoteCount": 0,
+      "viewCount": 4100,
+      "createdAt": "Sun Sep 14 20:15:00 +0000 2026",
+      "isReply": true,
+      "inReplyToId": "1899000000000000001",
+      "conversationId": "1899000000000000001",
+      "quoted_tweet": null
+    }
+  ]
+}

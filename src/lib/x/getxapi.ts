@@ -99,6 +99,21 @@ const tweetsResponse = z.object({
   tweets: z.array(tweetPayload).default([]),
 });
 
+/** Which timeline to walk. Replies are where argument style actually shows. */
+export type TimelineSource = "tweets" | "tweets_and_replies";
+
+const TIMELINE_PATHS: Record<TimelineSource, string> = {
+  tweets: "/twitter/user/tweets",
+  tweets_and_replies: "/twitter/user/tweets_and_replies",
+};
+
+export type TimelinePage = {
+  tweets: StoredTweet[];
+  pagesFetched: number;
+  droppedRetweets: number;
+  duplicates: number;
+};
+
 export type XProfile = {
   id: string;
   handle: string;
@@ -197,6 +212,8 @@ export type IngestResult = {
   usableCount: number;
   droppedRetweets: number;
   pagesFetched: number;
+  /** How many usable tweets each timeline contributed. */
+  bySource: Record<TimelineSource, number>;
   apiCalls: number;
   estimatedCostUsd: number;
 };
@@ -293,36 +310,49 @@ export class GetXApiClient {
   }
 
   /**
-   * Walks the timeline until `cap` usable tweets are collected, the cursor runs
+   * Walks one timeline until `cap` usable tweets are collected, the cursor runs
    * out, or `maxPages` is reached — whichever comes first. Plain retweets are
    * dropped and do not count toward the cap.
+   *
+   * `seen` is shared across sources so the replies timeline does not re-collect
+   * what the main timeline already returned.
    */
-  async fetchTweets(options: {
+  async fetchTimeline(options: {
     handle: string;
     userId?: string;
     cap: number;
     maxPages: number;
-  }): Promise<{ tweets: StoredTweet[]; pagesFetched: number; droppedRetweets: number }> {
-    const { handle, userId, cap, maxPages } = options;
+    source?: TimelineSource;
+    seen?: Set<string>;
+  }): Promise<TimelinePage> {
+    const { handle, userId, cap, maxPages, source = "tweets" } = options;
+    const path = TIMELINE_PATHS[source];
     const collected: StoredTweet[] = [];
-    const seen = new Set<string>();
+    const seen = options.seen ?? new Set<string>();
     let droppedRetweets = 0;
+    let duplicates = 0;
     let cursor: string | undefined;
     let pagesFetched = 0;
 
-    while (pagesFetched < maxPages) {
-      const params: Record<string, string> = userId ? { userId } : { userName: handle };
+    while (pagesFetched < maxPages && collected.length < cap) {
+      // tweets_and_replies is documented as userName-only; the main timeline
+      // accepts userId, which the docs call the faster path.
+      const params: Record<string, string> =
+        userId && source === "tweets" ? { userId } : { userName: handle };
       if (cursor) params.cursor = cursor;
 
-      const parsed = tweetsResponse.safeParse(await this.get("/twitter/user/tweets", params));
+      const parsed = tweetsResponse.safeParse(await this.get(path, params));
       if (!parsed.success) {
-        throw new GetXApiError("malformed", "GetXAPI tweets response did not match the expected shape.");
+        throw new GetXApiError("malformed", `GetXAPI ${source} response did not match the expected shape.`);
       }
       pagesFetched += 1;
 
       const page = parsed.data;
       for (const raw of page.tweets) {
-        if (seen.has(raw.id)) continue;
+        if (seen.has(raw.id)) {
+          duplicates += 1;
+          continue;
+        }
         seen.add(raw.id);
 
         const tweet = toStoredTweet(raw, handle);
@@ -333,27 +363,76 @@ export class GetXApiClient {
         }
 
         collected.push(tweet);
-        if (collected.length >= cap) {
-          return { tweets: collected, pagesFetched, droppedRetweets };
-        }
+        if (collected.length >= cap) break;
       }
 
       if (!page.has_more || !page.next_cursor) break;
       cursor = page.next_cursor;
     }
 
-    return { tweets: collected, pagesFetched, droppedRetweets };
+    return { tweets: collected, pagesFetched, droppedRetweets, duplicates };
   }
 
-  /** Profile + timeline in one call, with the cost of the run attached. */
-  async ingest(handle: string, options: { cap: number; maxPages: number }): Promise<IngestResult> {
+  /** Back-compat alias for the main timeline. */
+  async fetchTweets(options: {
+    handle: string;
+    userId?: string;
+    cap: number;
+    maxPages: number;
+  }): Promise<TimelinePage> {
+    return this.fetchTimeline(options);
+  }
+
+  /**
+   * Profile + timelines in one call, with the cost of the run attached.
+   *
+   * Both the main timeline and the replies tab are walked under a single page
+   * budget, sharing a `seen` set so a post returned by both is stored once.
+   * Replies are included because argument style — how this account disagrees —
+   * is mostly invisible in originals alone.
+   */
+  async ingest(
+    handle: string,
+    options: { cap: number; maxPages: number; includeReplies?: boolean },
+  ): Promise<IngestResult> {
+    const includeReplies = options.includeReplies ?? true;
     const profile = await this.fetchProfile(handle);
-    const { tweets, pagesFetched, droppedRetweets } = await this.fetchTweets({
+    const seen = new Set<string>();
+
+    const main = await this.fetchTimeline({
       handle: profile.handle,
       userId: profile.id,
       cap: options.cap,
       maxPages: options.maxPages,
+      source: "tweets",
+      seen,
     });
+
+    const tweets = [...main.tweets];
+    let pagesFetched = main.pagesFetched;
+    let droppedRetweets = main.droppedRetweets;
+    const bySource: Record<TimelineSource, number> = {
+      tweets: main.tweets.length,
+      tweets_and_replies: 0,
+    };
+
+    const pageBudgetLeft = options.maxPages - pagesFetched;
+    const capLeft = options.cap - tweets.length;
+
+    if (includeReplies && pageBudgetLeft > 0 && capLeft > 0) {
+      const replies = await this.fetchTimeline({
+        handle: profile.handle,
+        cap: capLeft,
+        maxPages: pageBudgetLeft,
+        source: "tweets_and_replies",
+        seen,
+      });
+
+      tweets.push(...replies.tweets);
+      pagesFetched += replies.pagesFetched;
+      droppedRetweets += replies.droppedRetweets;
+      bySource.tweets_and_replies = replies.tweets.length;
+    }
 
     tweets.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
@@ -363,6 +442,7 @@ export class GetXApiClient {
       usableCount: tweets.length,
       droppedRetweets,
       pagesFetched,
+      bySource,
       apiCalls: this.apiCalls,
       estimatedCostUsd: Number((this.apiCalls * COST_PER_CALL_USD).toFixed(4)),
     };

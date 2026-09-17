@@ -10,13 +10,57 @@ import type { EnvLike } from "@/types/env";
 import { GetXApiClient, GetXApiError, readConfigFromEnv } from "@/lib/x/getxapi";
 import { parseHandleOrUrl } from "@/lib/x/handle";
 import { compilePersona } from "@/lib/persona/compile";
-import { recordUsage, saveCard, saveProfile, saveTweets } from "@/lib/persona/store";
+import { loadCard, recordUsage, saveCard, saveProfile, saveTweets } from "@/lib/persona/store";
+import { decideCache } from "@/lib/persona/cache";
 import { isDatabaseConfigured } from "@/lib/db";
 import type { PersonaCard } from "@/types/persona";
 
-/** Phase 1 cap. Phase 2 raises this to 400 via the same env var. */
-export const DEFAULT_TWEET_CAP = 100;
+/** Phase 2 cap. BUILD.md's default target is 300–500. */
+export const DEFAULT_TWEET_CAP = 400;
 export const DEFAULT_MAX_PAGES = 25;
+
+/** Progress states surfaced to the UI while an ingest runs. */
+export type CompileState = "cached" | "fetching" | "compiling" | "ready" | "failed";
+
+/**
+ * The wire contract for streamed progress. `ready` carries the summary rather
+ * than the whole card so the streamed and plain-JSON responses agree.
+ */
+export type ProgressEvent =
+  | { state: "cached"; handle: string; compiledAt: string }
+  | { state: "fetching"; handle: string }
+  | { state: "compiling"; handle: string; tweetCountUsed: number }
+  | ({ state: "ready" } & PersonaSummaryWire)
+  | { state: "failed"; code: IngestFailure["code"]; error: string };
+
+export type PersonaSummaryWire = {
+  handle: string;
+  displayName: string;
+  tweetCountUsed: number;
+  thinRecord: boolean;
+  compiled: boolean;
+  compileError: string | null;
+  pagesFetched: number;
+  estimatedCostUsd: number;
+  persisted: boolean;
+  cached: boolean;
+};
+
+/** Drops the card, which no caller of the HTTP API needs. */
+export function toWireSummary(summary: IngestSummary): PersonaSummaryWire {
+  return {
+    handle: summary.handle,
+    displayName: summary.displayName,
+    tweetCountUsed: summary.tweetCountUsed,
+    thinRecord: summary.thinRecord,
+    compiled: summary.compiled,
+    compileError: summary.compileError ?? null,
+    pagesFetched: summary.pagesFetched,
+    estimatedCostUsd: summary.estimatedCostUsd,
+    persisted: summary.persisted,
+    cached: summary.cached,
+  };
+}
 
 export type IngestSummary = {
   handle: string;
@@ -30,6 +74,8 @@ export type IngestSummary = {
   pagesFetched: number;
   estimatedCostUsd: number;
   persisted: boolean;
+  /** True when the 24h cache served this and no upstream call was made. */
+  cached: boolean;
 };
 
 export type IngestFailure = {
@@ -56,11 +102,56 @@ export function maxPages(env: EnvLike = process.env): number {
   return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : DEFAULT_MAX_PAGES;
 }
 
-export async function ingestAndCompile(handleOrUrl: string): Promise<IngestSummary> {
+/** Replies are read unless explicitly turned off. */
+export function includeReplies(env: EnvLike = process.env): boolean {
+  return env.X_INCLUDE_REPLIES?.trim().toLowerCase() !== "false";
+}
+
+export async function ingestAndCompile(
+  handleOrUrl: string,
+  options: { refresh?: boolean; onProgress?: (event: ProgressEvent) => void } = {},
+): Promise<IngestSummary> {
+  const emit = options.onProgress ?? (() => {});
   const parsed = parseHandleOrUrl(handleOrUrl);
   if (!parsed.ok) {
     throw new IngestError({ code: "invalid-handle", message: parsed.message });
   }
+
+  // Check the cache before touching a paid endpoint.
+  const existing = await loadCard(parsed.handle).catch(() => null);
+  const decision = decideCache({
+    compiledAt: existing?.compiledAt,
+    refresh: options.refresh,
+  });
+
+  if (decision.hit && existing) {
+    console.info(
+      `[compile] cache hit handle=${parsed.handle} compiledAt=${decision.compiledAt} ageH=${(decision.ageMs / 3_600_000).toFixed(1)}`,
+    );
+    emit({ state: "cached", handle: existing.card.handle, compiledAt: decision.compiledAt });
+
+    return {
+      handle: existing.card.handle,
+      displayName: existing.card.displayName,
+      card: existing.card,
+      tweetCountUsed: existing.tweetCountUsed,
+      droppedRetweets: 0,
+      thinRecord: existing.thinRecord,
+      compiled: true,
+      pagesFetched: 0,
+      estimatedCostUsd: 0,
+      persisted: true,
+      cached: true,
+    };
+  }
+
+  // decision.hit with no stored card means the row vanished between the two
+  // reads; treat it as a miss with no card.
+  const missReason = decision.hit ? "no-card" : decision.reason;
+  console.info(
+    `[compile] cache miss handle=${parsed.handle} reason=${missReason} cap=${tweetCap()} maxPages=${maxPages()}`,
+  );
+  emit({ state: "fetching", handle: parsed.handle });
 
   let client: GetXApiClient;
   try {
@@ -74,7 +165,11 @@ export async function ingestAndCompile(handleOrUrl: string): Promise<IngestSumma
 
   let result: Awaited<ReturnType<GetXApiClient["ingest"]>>;
   try {
-    result = await client.ingest(parsed.handle, { cap: tweetCap(), maxPages: maxPages() });
+    result = await client.ingest(parsed.handle, {
+      cap: tweetCap(),
+      maxPages: maxPages(),
+      includeReplies: includeReplies(),
+    });
   } catch (error) {
     if (error instanceof GetXApiError) {
       const code =
@@ -93,6 +188,10 @@ export async function ingestAndCompile(handleOrUrl: string): Promise<IngestSumma
       usableTweets: result.usableCount,
       droppedRetweets: result.droppedRetweets,
       apiCalls: result.apiCalls,
+      cap: tweetCap(),
+      maxPages: maxPages(),
+      fromTimeline: result.bySource.tweets,
+      fromReplies: result.bySource.tweets_and_replies,
     },
   });
 
@@ -110,6 +209,12 @@ export async function ingestAndCompile(handleOrUrl: string): Promise<IngestSumma
     await saveProfile(result.profile);
     await saveTweets(result.tweets);
   }
+
+  emit({
+    state: "compiling",
+    handle: result.profile.handle,
+    tweetCountUsed: result.usableCount,
+  });
 
   const outcome = await compilePersona({
     handle: result.profile.handle,
@@ -147,5 +252,6 @@ export async function ingestAndCompile(handleOrUrl: string): Promise<IngestSumma
     pagesFetched: result.pagesFetched,
     estimatedCostUsd: result.estimatedCostUsd,
     persisted,
+    cached: false,
   };
 }

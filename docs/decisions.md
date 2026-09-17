@@ -120,3 +120,40 @@ database.
 
 **2026-09-17 — `pnpm db:seed` loads the fixture persona into Postgres.** It lets the full
 database-backed path be run without a GetXAPI key. It writes only the synthetic handle.
+
+## Phase 2
+
+**2026-09-17 — Replies and quotes are ingested; plain retweets still are not.** BUILD.md asks for
+this note. Three reasons. Argument style — how this account disagrees, which the card records as
+`disagreementStyle` — is almost invisible in originals alone; it shows in replies. Quotes carry
+the quoted text, so a take that only makes sense as a response to something stays legible. A plain
+retweet contains none of the account's own words, so counting it as substance would let a pure
+amplifier account compile into a confident voice it never wrote. Replies are also where a thin
+originals-only timeline becomes a usable corpus.
+
+**2026-09-17 — Both timelines share one page budget and one `seen` set.** `X_MAX_PAGES` caps the
+whole ingest, not each endpoint, so cost stays bounded at ~$0.025 per compile regardless of how
+the posts are split. The shared `seen` set means a post the two tabs both return is stored once;
+the replies pass is skipped entirely when the cap or the page budget is already spent.
+
+**2026-09-17 — The cache is checked before the client is constructed.** A cache hit costs no
+upstream call and does not even require `GETXAPI_KEY` to be set. That also makes the cache path
+verifiable without credentials.
+
+**2026-09-17 — A card dated in the future is treated as stale.** It means a clock problem
+somewhere, and trusting it would pin a handle to a card that never expires.
+
+**2026-09-17 — Progress is NDJSON, opt-in via `Accept`.** A compile takes 10–30s and an opaque
+spinner for that long reads as broken. Streaming `fetching` → `compiling` → `ready` states needs
+no polling endpoint and no job table. Plain JSON stays the default so curl and any other client
+keep working. A failure that happens mid-stream arrives as a `failed` event inside a 200, because
+a status code cannot be revised once the body has started.
+
+**2026-09-17 — Preview bullets are ordered by priority, not by card layout.** The 8-bullet cap
+truncates the tail, and the first version buried "No public take on …" and "Has publicly changed
+position on …" behind humour and catchphrases. Those two are the bullets that stop a reader
+trusting an answer the account never earned, so they now rank directly after voice basics. A test
+asserts they survive the cap.
+
+**2026-09-17 — Avatars render with a plain `img`.** They come from X's CDN, and configuring
+`next/image` remote patterns for a host we do not control buys nothing here.

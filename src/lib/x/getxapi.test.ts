@@ -13,11 +13,19 @@ import protectedFixture from "@/lib/x/fixtures/profile-protected.json";
 import page1 from "@/lib/x/fixtures/tweets-page-1.json";
 import page2 from "@/lib/x/fixtures/tweets-page-2.json";
 import retweetsOnly from "@/lib/x/fixtures/tweets-retweets-only.json";
+import repliesPage from "@/lib/x/fixtures/tweets-replies-page-1.json";
 
 /** Serves fixtures by URL so no test touches the network. */
-function mockFetch(routes: { info?: unknown; pages?: unknown[]; status?: number }) {
+function mockFetch(routes: {
+  info?: unknown;
+  pages?: unknown[];
+  replyPages?: unknown[];
+  status?: number;
+}) {
   const pages = routes.pages ?? [];
+  const replyPages = routes.replyPages ?? [];
   let pageIndex = 0;
+  let replyIndex = 0;
   const calls: string[] = [];
   const headers: Array<Record<string, string>> = [];
 
@@ -29,6 +37,13 @@ function mockFetch(routes: { info?: unknown; pages?: unknown[]; status?: number 
     }
     if (input.includes("/twitter/user/info")) {
       return Response.json(routes.info);
+    }
+    if (input.includes("/twitter/user/tweets_and_replies")) {
+      const body = replyPages.length
+        ? replyPages[Math.min(replyIndex, replyPages.length - 1)]
+        : { tweets: [], has_more: false, next_cursor: null };
+      replyIndex += 1;
+      return Response.json(body);
     }
     const body = pages[Math.min(pageIndex, pages.length - 1)];
     pageIndex += 1;
@@ -218,7 +233,7 @@ describe("ingest", () => {
     expect(result.usableCount).toBe(result.tweets.length);
   });
 
-  it("sends the bearer token and prefers userId for the timeline", async () => {
+  it("sends the bearer token and prefers userId for the main timeline", async () => {
     const { api, calls, headers } = client({ info: profileFixture, pages: [page1, page2] });
     await api.ingest("testfounder", { cap: 100, maxPages: 25 });
 
@@ -226,5 +241,86 @@ describe("ingest", () => {
     expect(headers.every((h) => h.Authorization === "Bearer test-key")).toBe(true);
     expect(calls[0]).toContain("userName=testfounder");
     expect(calls[1]).toContain("userId=745273");
+  });
+
+  it("also walks the replies timeline and merges it in", async () => {
+    const { api, calls } = client({
+      info: profileFixture,
+      pages: [page1, page2],
+      replyPages: [repliesPage],
+    });
+    const result = await api.ingest("testfounder", { cap: 100, maxPages: 25 });
+
+    expect(calls.some((c) => c.includes("/twitter/user/tweets_and_replies"))).toBe(true);
+    expect(result.bySource.tweets_and_replies).toBe(2);
+
+    const ids = result.tweets.map((t) => t.id);
+    expect(ids).toContain("1900000000000000010"); // reply only on the replies tab
+    expect(ids).toContain("1900000000000000011");
+  });
+
+  it("stores a post returned by both timelines exactly once", async () => {
+    const { api } = client({
+      info: profileFixture,
+      pages: [page1, page2],
+      replyPages: [repliesPage],
+    });
+    const result = await api.ingest("testfounder", { cap: 100, maxPages: 25 });
+
+    // 1900000000000000001 appears in both fixtures.
+    const repeated = result.tweets.filter((t) => t.id === "1900000000000000001");
+    expect(repeated).toHaveLength(1);
+  });
+
+  it("queries the replies timeline by userName, which is all it accepts", async () => {
+    const { api, calls } = client({
+      info: profileFixture,
+      pages: [page1, page2],
+      replyPages: [repliesPage],
+    });
+    await api.ingest("testfounder", { cap: 100, maxPages: 25 });
+
+    const replyCall = calls.find((c) => c.includes("tweets_and_replies"))!;
+    expect(replyCall).toContain("userName=testfounder");
+    expect(replyCall).not.toContain("userId=");
+  });
+
+  it("skips the replies timeline when the cap is already met", async () => {
+    const { api, calls } = client({
+      info: profileFixture,
+      pages: [page1],
+      replyPages: [repliesPage],
+    });
+    await api.ingest("testfounder", { cap: 2, maxPages: 25 });
+
+    expect(calls.some((c) => c.includes("tweets_and_replies"))).toBe(false);
+  });
+
+  it("skips the replies timeline when the page budget is spent", async () => {
+    const alwaysMore = { ...page1, has_more: true, next_cursor: "more" };
+    const { api, calls } = client({
+      info: profileFixture,
+      pages: [alwaysMore],
+      replyPages: [repliesPage],
+    });
+    await api.ingest("testfounder", { cap: 10_000, maxPages: 2 });
+
+    expect(calls.some((c) => c.includes("tweets_and_replies"))).toBe(false);
+  });
+
+  it("can be told not to read replies", async () => {
+    const { api, calls } = client({
+      info: profileFixture,
+      pages: [page1, page2],
+      replyPages: [repliesPage],
+    });
+    const result = await api.ingest("testfounder", {
+      cap: 100,
+      maxPages: 25,
+      includeReplies: false,
+    });
+
+    expect(calls.some((c) => c.includes("tweets_and_replies"))).toBe(false);
+    expect(result.bySource.tweets_and_replies).toBe(0);
   });
 });

@@ -52,6 +52,8 @@ export default async function PersonaPage({ params }: { params: Promise<{ handle
           <PersonaPreview
             card={persona.card}
             tweetCount={persona.tweetCountUsed}
+            compiledAt={persona.compiledAt}
+            avatarUrl={persona.avatarUrl}
             latestTweet={persona.tweets[0]}
           />
           {persona.source === "fixture" ? (

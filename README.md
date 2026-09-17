@@ -10,10 +10,10 @@ Build plan and phase gates live in [`BUILD.md`](./BUILD.md). Decisions made alon
 [`docs/decisions.md`](./docs/decisions.md). Per-phase shipping notes live in
 [`PHASE_NOTES.md`](./PHASE_NOTES.md).
 
-## Status: Phase 1 (manual-proof chat)
+## Status: Phase 2 (ingest + persona compiler)
 
-Ingest, persona compile, and streaming chat are wired end to end. Every unit is covered by tests
-that run with no network and no keys.
+Ingest, persona compile, 24h caching, and streaming chat are wired end to end. Every unit is
+covered by tests that run with no network and no keys.
 
 ## Run it
 
@@ -123,10 +123,11 @@ drizzle/            # generated migration SQL
 
 ## How a turn is grounded
 
-`POST /api/personas` reads up to `X_TWEET_CAP` usable posts (retweets dropped), stores them, and
-compiles a `PersonaCard` — voice, stated positions with confidence, current context, and known
-unknowns. If the compile fails or returns junk, a **thin card** is stored instead and chat still
-works off the raw posts.
+`POST /api/personas` reads up to `X_TWEET_CAP` usable posts across the main timeline **and the
+replies tab** (plain retweets dropped, duplicates collapsed), stores them, and compiles a
+`PersonaCard` — voice, stated positions with confidence, current context, and known unknowns. If
+the compile fails or returns junk, a **thin card** is stored instead and chat still works off the
+raw posts. A compiled card is reused for 24 hours unless you pass `refresh: true`.
 
 Each chat turn builds a system prompt from the card plus the newest `CHAT_RECENT_TWEETS` posts,
 and returns the ids it actually injected on `X-Injected-Tweet-Ids`. The "Why this answer" panel
