@@ -43,3 +43,16 @@ each page means no route can ship without it, and there is no dismiss control to
 **2026-09-17 — The Phase 0 form validates but cannot submit.** The Talk button is disabled; the
 form runs the parser live so the parser is exercised by hand on the real screen without any
 network call.
+
+## Phase 1 (pre-work)
+
+**2026-09-17 — Drizzle over Prisma.** Confirmed by the product owner. Lighter runtime for
+serverless invocations, and Phase 3's pgvector similarity queries are easier to express in
+Drizzle's SQL-first API than through a Prisma extension.
+
+**2026-09-17 — Two Postgres URLs, not one.** `DATABASE_URL` is the pooled runtime connection
+(Supabase transaction pooler, port 6543) and `DIRECT_DATABASE_URL` is the migration connection
+(session pooler or direct, port 5432). The transaction pooler drops session state between
+statements, so drizzle-kit's transactional DDL and prepared statements cannot run over it; the
+direct connection is IPv6-only on new Supabase projects, so app runtime cannot rely on it. The
+postgres.js client must be constructed with `prepare: false` against the transaction pooler.
