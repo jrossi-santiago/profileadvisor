@@ -1,6 +1,6 @@
 /**
- * Drizzle schema. Mirrors the target data model in BUILD.md; the vector column
- * on tweets arrives in Phase 3, auth columns in Phase 4.
+ * Drizzle schema. Mirrors the target data model in BUILD.md; auth columns
+ * arrive in Phase 4.
  *
  * Handles are stored canonically (lowercase, no @) everywhere — see
  * canonicalHandle() in src/lib/x/handle.ts. Display casing lives on profiles.
@@ -16,8 +16,16 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  vector,
 } from "drizzle-orm/pg-core";
 import type { PersonaCard, StoredTweet, TweetKind } from "@/types/persona";
+import { DEFAULT_EMBEDDING_DIMENSIONS } from "@/lib/chat/embeddings";
+
+/**
+ * Vector width baked into the schema. `EMBEDDING_DIMENSIONS` must agree with
+ * it; a different width needs a migration, so it is not read from env here.
+ */
+export const EMBEDDING_DIMENSIONS = DEFAULT_EMBEDDING_DIMENSIONS;
 
 export const profiles = pgTable(
   "profiles",
@@ -49,9 +57,17 @@ export const tweets = pgTable(
     url: text("url").notNull(),
     metrics: jsonb("metrics").$type<StoredTweet["metrics"]>().notNull(),
     ingestedAt: timestamp("ingested_at", { withTimezone: true }).notNull().defaultNow(),
+    // Width must match EMBEDDING_DIMENSIONS. Changing the model means a
+    // migration and a full re-embed, not just an env change.
+    embedding: vector("embedding", { dimensions: EMBEDDING_DIMENSIONS }),
+    embeddedAt: timestamp("embedded_at", { withTimezone: true }),
   },
-  // Chat loads "newest N for this handle" on every turn; this index is that query.
-  (table) => [index("tweets_handle_created_idx").on(table.handle, table.createdAt.desc())],
+  (table) => [
+    // Chat loads "newest N for this handle" on every turn; this index is that query.
+    index("tweets_handle_created_idx").on(table.handle, table.createdAt.desc()),
+    // Cosine distance is what retrieveTweets orders by.
+    index("tweets_embedding_idx").using("hnsw", table.embedding.op("vector_cosine_ops")),
+  ],
 );
 
 export const personaCards = pgTable("persona_cards", {
@@ -97,7 +113,7 @@ export const usageEvents = pgTable(
   "usage_events",
   {
     id: text("id").primaryKey(),
-    kind: text("kind").$type<"ingest" | "compile" | "chat" | "jev">().notNull(),
+    kind: text("kind").$type<"ingest" | "compile" | "chat" | "embed" | "jev">().notNull(),
     units: real("units").notNull().default(0),
     costUsd: real("cost_usd").notNull().default(0),
     handle: text("handle"),

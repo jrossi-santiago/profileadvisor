@@ -1,4 +1,6 @@
 import { buildPrompt, recentTweetLimit } from "@/lib/chat/system-prompt";
+import { retrieveTweets } from "@/lib/chat/retrieval";
+import { backfillEmbeddings } from "@/lib/persona/embed";
 import {
   isProviderConfigured,
   resolveProvider,
@@ -59,9 +61,33 @@ export async function POST(request: Request) {
     );
   }
 
+  const latestQuestion = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
+
+  // Tweets stored before embeddings were configured, or added by a later
+  // refresh, are embedded here. It is a no-op once the corpus is covered.
+  await backfillEmbeddings(handle).catch((error) =>
+    console.warn("[chat] embedding backfill failed", error),
+  );
+
+  const evidence = await retrieveTweets({
+    handle,
+    query: latestQuestion,
+    card: persona.card,
+  }).catch((error) => {
+    console.warn("[chat] retrieval failed; falling back to recent posts", error);
+    return null;
+  });
+
+  if (evidence && !evidence.semanticUsed) {
+    console.info(`[retrieval] handle=${handle} recency-only reason=${evidence.reason}`);
+  }
+
   const { system, injectedTweetIds } = buildPrompt({
     card: persona.card,
-    tweets: persona.tweets,
+    // Retrieval reads the corpus itself; persona.tweets is the fallback when
+    // there is no database behind this request.
+    tweets: evidence?.recent.length ? evidence.recent : persona.tweets,
+    retrieved: evidence?.retrieved.map((scored) => scored.tweet),
   });
 
   const latestUserMessage = [...history].reverse().find((m) => m.role === "user");
@@ -105,7 +131,12 @@ export async function POST(request: Request) {
           units: 1,
           costUsd: 0,
           handle,
-          detail: { injected: injectedTweetIds.length, model: provider.chatModel },
+          detail: {
+            injected: injectedTweetIds.length,
+            model: provider.chatModel,
+            retrieval: evidence?.semanticUsed ? "semantic" : "recency",
+            retrieved: evidence?.retrieved.length ?? 0,
+          },
         }).catch(() => undefined);
       }
     },
@@ -117,7 +148,16 @@ export async function POST(request: Request) {
       "Cache-Control": "no-store",
       "X-Thread-Id": threadId,
       // The "Why this answer" panel reads the posts that were really in context.
-      "X-Injected-Tweet-Ids": injectedTweetIds.slice(0, 50).join(","),
+      // Retrieved ids come first so the panel shows question-specific evidence
+      // rather than whatever happened to be posted most recently.
+      "X-Injected-Tweet-Ids": (evidence?.retrieved.length
+        ? [...evidence.retrieved.map((s) => s.tweet.id), ...injectedTweetIds]
+        : injectedTweetIds
+      )
+        .filter((id, index, all) => all.indexOf(id) === index)
+        .slice(0, 50)
+        .join(","),
+      "X-Retrieval-Mode": evidence?.semanticUsed ? "semantic" : "recency",
     },
   });
 }

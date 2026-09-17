@@ -7,7 +7,7 @@
  * write path for a real account.
  */
 
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { getDb, isDatabaseConfigured } from "@/lib/db";
 import { messages, personaCards, profiles, threads, tweets, usageEvents } from "@/lib/db/schema";
 import { canonicalHandle } from "@/lib/x/handle";
@@ -208,8 +208,37 @@ export async function loadPersona(
   };
 }
 
+/**
+ * Tweets by id for one handle, for the "Why this answer" panel. Scoped to the
+ * handle so an id from one account cannot be used to read another's rows.
+ */
+export async function loadTweetsByIds(
+  handleInput: string,
+  ids: string[],
+): Promise<StoredTweet[]> {
+  if (ids.length === 0) return [];
+  const handle = canonicalHandle(handleInput);
+
+  if (!isDatabaseConfigured()) {
+    const fixture = hasFixturePersona(handle) ? fixturePersona(handle, 1000) : null;
+    if (!fixture) return [];
+    const wanted = new Set(ids);
+    return fixture.tweets.filter((tweet) => wanted.has(tweet.id));
+  }
+
+  const rows = await getDb()
+    .select()
+    .from(tweets)
+    .where(and(eq(tweets.handle, handle), inArray(tweets.id, ids)))
+    .limit(ids.length);
+
+  // Preserve the caller's order: it is the ranking, not an arbitrary list.
+  const byId = new Map(rows.map((row) => [row.id, rowToTweet(row)]));
+  return ids.map((id) => byId.get(id)).filter((t): t is StoredTweet => Boolean(t));
+}
+
 export async function recordUsage(event: {
-  kind: "ingest" | "compile" | "chat" | "jev";
+  kind: "ingest" | "compile" | "chat" | "embed" | "jev";
   units: number;
   costUsd: number;
   handle?: string;

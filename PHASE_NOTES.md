@@ -125,3 +125,47 @@ last week of a real timeline, and the Phase 1 voice checks.
 - No embeddings or retrieval; chat still stuffs the newest 40 posts
 - No Jev (Phase 2.5, optional)
 - Refresh re-reads the whole timeline rather than fetching only what is new
+
+## Phase 3 — Retrieval + current-context brain (2026-09-17)
+
+**Shipped**
+- `src/lib/chat/embeddings.ts` — OpenAI-compatible embeddings client, batched, ordered by the
+  response's `index`, with dimension validation
+- `vector(1536)` column on tweets plus an HNSW cosine index; migration `0001` creates the pgvector
+  extension itself
+- `src/lib/persona/embed.ts` — backfill that selects only rows with a null embedding, so it is
+  idempotent by construction. Runs after compile and again on each chat turn.
+- `src/lib/chat/retrieval.ts` — `retrieveTweets({handle, query, card, k, recentN})`: pgvector
+  top-k, force-included recent posts, rerank `score = semantic + λ·exp(-ageDays/halfLife)`, plus a
+  keyword boost for topics already on the card. λ, k, recentN, half-life all in env.
+- Phase 3 prompt: EVIDENCE rules with CURRENT CONTEXT POSTS and RETRIEVED POSTS as separate
+  sections. Falls back to the Phase 1 single-block shape when nothing was retrieved.
+- `GET /api/tweets` so the "Why this answer" panel can resolve evidence older than the page's
+  recent posts
+
+**Verified**
+- 158 offline / **183 with a database**, green on repeated runs
+- `pnpm typecheck`, `pnpm build` clean
+- Migrations apply from scratch against Postgres 16 + pgvector 0.6.0
+- BUILD.md's acceptance fixtures, against real pgvector with a deterministic test embedder:
+  - a 3-year-old post about an old topic is retrieved when recency alone would never surface it
+  - both sides of a dated contradiction reach the prompt, with both dates present
+  - an off-topic question yields no strong match (best semantic < 0.2) while recent posts still
+    reach the prompt
+  - the backfill embeds 0 and makes no API calls on a second run
+  - injected ids exactly match the ids present in the prompt
+- Live over HTTP: first chat turn embedded all 20 seeded posts in one batch
+  (`[embed] embedded=20 batches=1 remaining=0`), `X-Retrieval-Mode: semantic`; with no embeddings
+  key, `[retrieval] recency-only reason=no-embeddings-provider` and chat continues
+- `GET /api/tweets` refuses ids belonging to another handle
+
+**Two bugs found while testing**
+- `semanticUsed` reported "semantic" when the vector search ran but every candidate was already in
+  the recent window. Now reports recency-only with reason `all-candidates-already-recent`.
+- Both database integration files truncated the whole schema, so whichever ran second wiped the
+  other's fixtures. The first green run was ordering luck. Cleanup is now per-handle and test files
+  run sequentially.
+
+**Still needs API keys** — λ and k are at BUILD.md's defaults and have never been tuned against a
+real timeline with real embeddings. The deterministic test embedder has no synonyms, so it proves
+the plumbing and the ranking maths, not retrieval quality.

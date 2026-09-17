@@ -157,3 +157,56 @@ asserts they survive the cap.
 
 **2026-09-17 — Avatars render with a plain `img`.** They come from X's CDN, and configuring
 `next/image` remote patterns for a host we do not control buys nothing here.
+
+## Phase 3
+
+**2026-09-17 — pgvector, not in-memory cosine.** 400 posts × 1536 floats is ~2.4MB per handle;
+loading that per chat turn to sort in JavaScript is the kind of thing that works in a fixture and
+falls over on the fifth concurrent user. Supabase ships pgvector, and the HNSW index makes the
+distance query an index scan. The migration creates the extension itself, since drizzle-kit does
+not emit `CREATE EXTENSION`.
+
+**2026-09-17 — Embeddings resolve separately from chat.** xAI is the default chat provider but
+publishes no embeddings endpoint, so embeddings read `EMBEDDING_API_KEY` and fall back to
+`OPENAI_API_KEY`. With neither set, retrieval degrades to recency-only and chat keeps working —
+that is the Phase 1–2 behaviour, not an error.
+
+**2026-09-17 — Vector width is a schema constant, not an env var.** `EMBEDDING_DIMENSIONS` must
+match the column. Changing the model to one with a different width needs a migration and a full
+re-embed, so pretending it is a runtime knob would only produce confusing insert failures.
+
+**2026-09-17 — Date and kind are embedded with the text.** A question like "what did they say in
+2024" has something to match, and a reply embeds differently from an original carrying the same
+words.
+
+**2026-09-17 — Embeddings are ordered by the response's `index`, not array position.** The API
+documents an index per row; trusting array order would silently mismatch vectors to tweets if a
+provider ever reordered them, which is the kind of bug that shows up as subtly wrong retrieval
+rather than an error.
+
+**2026-09-17 — The backfill selects only rows with a null embedding.** That makes it idempotent by
+construction rather than by bookkeeping: re-running embeds nothing, and a batch that fails partway
+simply leaves work for the next run.
+
+**2026-09-17 — Retrieved evidence excludes the recent window.** A post cannot be both current
+context and question-specific evidence; showing it twice wastes tokens and makes the citation list
+misleading.
+
+**2026-09-17 — `semanticUsed` is false when retrieval added nothing.** A small corpus can sit
+entirely inside `RETRIEVAL_RECENT_N`, so the vector search runs and returns only posts that are
+already current context. Reporting that as "semantic" was misleading in the response header and in
+the logs, because the prompt in that case is Phase 1 shaped.
+
+**2026-09-17 — The keyword boost only fires on topics already on the card.** It cannot invent
+relevance for something outside the corpus, which is the failure mode a general keyword match
+would introduce.
+
+**2026-09-17 — `GET /api/tweets` resolves ids for the citation panel.** Retrieved evidence can be
+years older than anything the page was rendered with, so the client cannot always resolve a source
+id locally. The lookup is scoped to the handle and capped at 25 ids, so it cannot be used to walk
+another account's corpus.
+
+**2026-09-17 — Database tests clean up by handle and files run sequentially.** Two integration
+files sharing one database both truncated the whole schema, so whichever ran second wiped the
+other's fixtures mid-run — the first green run was ordering luck. Cleanup is now scoped to the
+handle each file owns, and `fileParallelism: false` removes the interleaving entirely.

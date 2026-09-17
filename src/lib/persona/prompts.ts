@@ -46,14 +46,21 @@ ${input.tweets.map(formatTweetLine).join("\n")}`;
 }
 
 /**
- * Phase 1 chat prompt. Phase 3 replaces the raw tweet dump with retrieved
- * evidence; the disclosure and refusal rules stay as they are.
+ * Chat prompt.
+ *
+ * With `retrieved` posts supplied (Phase 3), the post section splits into
+ * current context and question-specific evidence, and the EVIDENCE rules are
+ * added: a firm take must be grounded in one of the posts below. Without them
+ * it degrades to the Phase 1 shape — one recent-posts block — which is what
+ * runs when embeddings are unconfigured.
  */
 export function buildChatSystemPrompt(input: {
   card: PersonaCard;
   tweets: StoredTweet[];
+  retrieved?: StoredTweet[];
 }): string {
   const { card, tweets } = input;
+  const retrieved = input.retrieved ?? [];
   const voice = card.voice;
 
   const topicLines = card.topics.length
@@ -98,8 +105,7 @@ CURRENT CONTEXT (weight this higher than old posts)
 KNOWN UNKNOWNS (no public take — say so if asked)
 ${card.unknowns.map((u) => `- ${u}`).join("\n") || "- (none recorded)"}
 ${thinWarning}
-RECENT PUBLIC POSTS (newest first; each line: [id] [date] [kind] text)
-${tweets.map(formatTweetLine).join("\n")}
+${postSections(tweets, retrieved)}
 
 RULES
 1. Prefer recent posts when they conflict with older ones. Say the view shifted if both exist.
@@ -107,4 +113,30 @@ RULES
 3. Match energy: terse accounts stay terse. No corporate warmth unless they write that way.
 4. Do not invent biography, jobs, relationships, or off-platform quotes.
 5. If you lean on a post, mention it naturally or by date. Do not dump a source list unless asked.`;
+}
+
+/**
+ * The posts block. Splitting current context from retrieved evidence is what
+ * lets rule 1 ("prefer recent") and the EVIDENCE rules coexist: the model can
+ * see which posts are today's mood and which were pulled for this question.
+ */
+function postSections(recent: StoredTweet[], retrieved: StoredTweet[]): string {
+  const recentBlock = recent.length
+    ? recent.map(formatTweetLine).join("\n")
+    : "(no recent posts available)";
+
+  if (retrieved.length === 0) {
+    return `RECENT PUBLIC POSTS (newest first; each line: [id] [date] [kind] text)
+${recentBlock}`;
+  }
+
+  return `EVIDENCE
+Only the posts below may ground a firm take. If they do not cover the question,
+say you have no public take. If evidence conflicts by date, say the view shifted.
+
+CURRENT CONTEXT POSTS (newest first; each line: [id] [date] [kind] text)
+${recentBlock}
+
+RETRIEVED POSTS FOR THIS QUESTION (most relevant first)
+${retrieved.map(formatTweetLine).join("\n")}`;
 }

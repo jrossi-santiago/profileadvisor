@@ -12,6 +12,7 @@ import { parseHandleOrUrl } from "@/lib/x/handle";
 import { compilePersona } from "@/lib/persona/compile";
 import { loadCard, recordUsage, saveCard, saveProfile, saveTweets } from "@/lib/persona/store";
 import { decideCache } from "@/lib/persona/cache";
+import { backfillEmbeddings } from "@/lib/persona/embed";
 import { isDatabaseConfigured } from "@/lib/db";
 import type { PersonaCard } from "@/types/persona";
 
@@ -238,6 +239,22 @@ export async function ingestAndCompile(
       sourceTweetIds: outcome.sourceTweetIds,
       compileError: outcome.error,
     });
+
+    // Embed the new corpus so the first chat turn already has evidence to
+    // retrieve. Failure here is not fatal: retrieval degrades to recency.
+    const embedded = await backfillEmbeddings(result.profile.handle).catch((error) => {
+      console.warn("[ingest] embedding backfill failed", error);
+      return null;
+    });
+    if (embedded && !embedded.skipped && embedded.embedded > 0) {
+      await recordUsage({
+        kind: "embed",
+        units: embedded.embedded,
+        costUsd: 0,
+        handle: result.profile.handle,
+        detail: { batches: embedded.batches, remaining: embedded.remaining },
+      });
+    }
   }
 
   return {

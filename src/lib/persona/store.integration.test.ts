@@ -7,9 +7,10 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
-import { messages, personaCards, profiles, threads, tweets, usageEvents } from "@/lib/db/schema";
+import { personaCards, profiles, tweets, usageEvents } from "@/lib/db/schema";
+import { resetHandle } from "@/lib/db/test-support";
 import { decideCache } from "@/lib/persona/cache";
 import {
   ensureThread,
@@ -48,19 +49,16 @@ const profile: XProfile = {
 describe.skipIf(!hasDatabase)("store against a real database", () => {
   const persona = fixturePersona("testfounder", 100)!;
 
-  async function truncateAll() {
-    const db = getDb();
-    await db.execute(
-      sql`truncate ${messages}, ${threads}, ${personaCards}, ${tweets}, ${profiles}, ${usageEvents}`,
-    );
-  }
+  // Scoped to this file's handle so a sibling integration file's fixtures
+  // survive.
+  const reset = () => resetHandle("testfounder");
 
-  beforeAll(truncateAll);
-  afterAll(truncateAll);
+  beforeAll(reset);
+  afterAll(reset);
 
   it("saves a profile and canonicalizes the handle", async () => {
     await saveProfile(profile);
-    const rows = await getDb().select().from(profiles);
+    const rows = await getDb().select().from(profiles).where(eq(profiles.handle, "testfounder"));
     expect(rows).toHaveLength(1);
     expect(rows[0].handle).toBe("testfounder");
     expect(rows[0].displayName).toBe("Test Founder");
@@ -68,7 +66,7 @@ describe.skipIf(!hasDatabase)("store against a real database", () => {
 
   it("is idempotent on a re-ingest of the same profile", async () => {
     await saveProfile({ ...profile, followers: 50000 });
-    const rows = await getDb().select().from(profiles);
+    const rows = await getDb().select().from(profiles).where(eq(profiles.handle, "testfounder"));
     expect(rows).toHaveLength(1);
     expect(rows[0].followers).toBe(50000);
   });
@@ -82,7 +80,7 @@ describe.skipIf(!hasDatabase)("store against a real database", () => {
     }));
     await saveTweets(bumped);
 
-    const rows = await getDb().select().from(tweets);
+    const rows = await getDb().select().from(tweets).where(eq(tweets.handle, "testfounder"));
     expect(rows).toHaveLength(persona.tweets.length);
     const first = rows.find((r) => r.id === persona.tweets[0].id);
     expect(first?.metrics.likes).toBe(persona.tweets[0].metrics.likes + 1000);
@@ -149,7 +147,7 @@ describe.skipIf(!hasDatabase)("store against a real database", () => {
       detail: { pages: 3 },
     });
 
-    const rows = await getDb().select().from(usageEvents);
+    const rows = await getDb().select().from(usageEvents).where(eq(usageEvents.handle, "testfounder"));
     expect(rows).toHaveLength(1);
     expect(rows[0].kind).toBe("ingest");
     expect(rows[0].handle).toBe("testfounder");
@@ -161,9 +159,7 @@ describe.skipIf(!hasDatabase)("compile cache against a real database", () => {
   const persona = fixturePersona("testfounder", 100)!;
 
   beforeAll(async () => {
-    await getDb().execute(
-      sql`truncate ${messages}, ${threads}, ${personaCards}, ${tweets}, ${profiles}, ${usageEvents}`,
-    );
+    await resetHandle("testfounder");
     await saveProfile(profile);
     await saveTweets(persona.tweets);
   });
@@ -222,7 +218,7 @@ describe.skipIf(!hasDatabase)("compile cache against a real database", () => {
     expect(new Date(after).getTime()).toBeGreaterThan(new Date(before).getTime());
 
     // A recompile replaces the row rather than accumulating cards.
-    const rows = await getDb().select().from(personaCards);
+    const rows = await getDb().select().from(personaCards).where(eq(personaCards.handle, "testfounder"));
     expect(rows).toHaveLength(1);
   });
 });

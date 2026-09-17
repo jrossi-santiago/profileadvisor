@@ -59,6 +59,30 @@ export function Chat({
 
   const byId = new Map(recentTweets.map((tweet) => [tweet.id, tweet]));
 
+  /**
+   * Resolves source ids to posts. Retrieved evidence can be older than anything
+   * this page was rendered with, so unknown ids are fetched.
+   */
+  async function resolveSources(ids: string[]): Promise<StoredTweet[]> {
+    const known = ids.map((id) => byId.get(id)).filter((t): t is StoredTweet => Boolean(t));
+    const missing = ids.filter((id) => !byId.has(id));
+    if (missing.length === 0) return known;
+
+    try {
+      const response = await fetch(
+        `/api/tweets?handle=${encodeURIComponent(handle)}&ids=${missing.join(",")}`,
+      );
+      if (!response.ok) return known;
+      const payload = (await response.json()) as { tweets?: StoredTweet[] };
+      const fetched = new Map((payload.tweets ?? []).map((tweet) => [tweet.id, tweet]));
+      return ids
+        .map((id) => byId.get(id) ?? fetched.get(id))
+        .filter((t): t is StoredTweet => Boolean(t));
+    } catch {
+      return known;
+    }
+  }
+
   async function send(event: React.FormEvent) {
     event.preventDefault();
     const question = draft.trim();
@@ -89,14 +113,15 @@ export function Chat({
       }
 
       threadId.current = response.headers.get("X-Thread-Id") ?? threadId.current;
-      const sources = (response.headers.get("X-Injected-Tweet-Ids") ?? "")
+      const sourceIds = (response.headers.get("X-Injected-Tweet-Ids") ?? "")
         .split(",")
         .filter(Boolean)
-        .map((id) => byId.get(id))
-        .filter((tweet): tweet is StoredTweet => Boolean(tweet))
         .slice(0, 3);
 
-      setTurns((current) => [...current, { role: "assistant", content: "", sources }]);
+      setTurns((current) => [...current, { role: "assistant", content: "", sources: [] }]);
+
+      // Resolved alongside the stream so the reply starts rendering immediately.
+      const sourcesPromise = resolveSources(sourceIds);
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -112,6 +137,14 @@ export function Chat({
           return next;
         });
       }
+
+      const sources = await sourcesPromise;
+      setTurns((current) => {
+        const next = [...current];
+        const last = next[next.length - 1];
+        if (last?.role === "assistant") next[next.length - 1] = { ...last, sources };
+        return next;
+      });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Chat failed.");
     } finally {

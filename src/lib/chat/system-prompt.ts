@@ -22,11 +22,15 @@ export type BuiltPrompt = {
   system: string;
   injectedTweetIds: string[];
   injectedTweets: StoredTweet[];
+  /** True when question-specific evidence was retrieved, not just recency. */
+  semanticUsed: boolean;
 };
 
 export function buildPrompt(input: {
   card: PersonaCard;
   tweets: StoredTweet[];
+  /** Phase 3 evidence for this question; omitted means recency-only. */
+  retrieved?: StoredTweet[];
   recentN?: number;
 }): BuiltPrompt {
   const limit = input.recentN ?? recentTweetLimit();
@@ -34,11 +38,19 @@ export function buildPrompt(input: {
   // Sort defensively: callers should hand us newest-first, but the prompt's
   // recency rules are worthless if the order is wrong.
   const newestFirst = [...input.tweets].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const injectedTweets = newestFirst.slice(0, limit);
+  const recent = newestFirst.slice(0, limit);
+
+  // A post cannot be both current context and retrieved evidence; showing it
+  // twice wastes tokens and makes the citation list misleading.
+  const recentIds = new Set(recent.map((t) => t.id));
+  const retrieved = (input.retrieved ?? []).filter((tweet) => !recentIds.has(tweet.id));
+
+  const injectedTweets = [...recent, ...retrieved];
 
   return {
-    system: buildChatSystemPrompt({ card: input.card, tweets: injectedTweets }),
+    system: buildChatSystemPrompt({ card: input.card, tweets: recent, retrieved }),
     injectedTweetIds: injectedTweets.map((t) => t.id),
     injectedTweets,
+    semanticUsed: retrieved.length > 0,
   };
 }

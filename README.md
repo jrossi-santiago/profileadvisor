@@ -10,10 +10,10 @@ Build plan and phase gates live in [`BUILD.md`](./BUILD.md). Decisions made alon
 [`docs/decisions.md`](./docs/decisions.md). Per-phase shipping notes live in
 [`PHASE_NOTES.md`](./PHASE_NOTES.md).
 
-## Status: Phase 2 (ingest + persona compiler)
+## Status: Phase 3 (retrieval + current-context brain)
 
-Ingest, persona compile, 24h caching, and streaming chat are wired end to end. Every unit is
-covered by tests that run with no network and no keys.
+Ingest, persona compile, 24h caching, pgvector retrieval, and streaming chat are wired end to end.
+Every unit is covered by tests that run with no network and no keys.
 
 ## Run it
 
@@ -129,9 +129,23 @@ replies tab** (plain retweets dropped, duplicates collapsed), stores them, and c
 the compile fails or returns junk, a **thin card** is stored instead and chat still works off the
 raw posts. A compiled card is reused for 24 hours unless you pass `refresh: true`.
 
-Each chat turn builds a system prompt from the card plus the newest `CHAT_RECENT_TWEETS` posts,
-and returns the ids it actually injected on `X-Injected-Tweet-Ids`. The "Why this answer" panel
-shows those posts — what was in context, not what the model claims it quoted.
+Each chat turn retrieves evidence rather than dumping the corpus:
+
+1. the newest `RETRIEVAL_RECENT_N` posts are always included as current context
+2. pgvector finds the top semantic matches for the question
+3. those are reranked as `score = semantic + λ·exp(-ageDays/halfLife)`, so a slightly weaker but
+   much newer post can outrank a stale exact match
+4. posts naming a topic already on the card get a small keyword boost
+
+The prompt then carries EVIDENCE rules: a firm take must be grounded in one of those posts, and if
+the evidence conflicts by date the simulation says the view shifted. The route returns the ids it
+actually injected on `X-Injected-Tweet-Ids` and the mode on `X-Retrieval-Mode`. The "Why this
+answer" panel shows those posts — what was in context, not what the model claims it quoted.
+
+With no embeddings key configured, retrieval degrades to recency-only and chat keeps working.
+
+**pgvector is required** for semantic retrieval. Supabase ships it; self-hosted Postgres needs the
+`postgresql-<version>-pgvector` package. Migration `0001` creates the extension.
 
 ## Environment
 
