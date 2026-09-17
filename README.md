@@ -37,6 +37,18 @@ pnpm typecheck    # tsc --noEmit
 pnpm build        # production build
 pnpm db:generate  # drizzle-kit: regenerate SQL from src/lib/db/schema.ts
 pnpm db:migrate   # drizzle-kit: apply migrations (uses DIRECT_DATABASE_URL)
+pnpm db:seed      # load the synthetic @testfounder persona into the database
+```
+
+The suite includes database integration tests that **skip unless `DATABASE_URL` is set**. To run
+them against a throwaway local Postgres:
+
+```bash
+createdb talkto
+export DATABASE_URL=postgres://postgres@localhost:5432/talkto
+export DIRECT_DATABASE_URL=$DATABASE_URL
+pnpm db:migrate && pnpm test        # 105 tests instead of 96
+pnpm db:seed && pnpm dev            # then open /t/testfounder
 ```
 
 ## Talk to @x with local keys

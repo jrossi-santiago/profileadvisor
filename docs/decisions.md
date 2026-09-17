@@ -112,3 +112,11 @@ bars stacked and left both unreadable. One banner in the root layout, deriving t
 exists so the chat UI can be developed and reviewed without a database. It serves exactly one
 synthetic handle, is clearly labelled as a development fixture in the UI, and can never mask a
 broken write path for a real account.
+
+**2026-09-17 — Database tests are checked in but skip without `DATABASE_URL`.** `describe.skipIf`
+keeps the default suite offline and fast while making the persistence layer verifiable on demand.
+The suite truncates before and after itself, so it must only ever be pointed at a throwaway
+database.
+
+**2026-09-17 — `pnpm db:seed` loads the fixture persona into Postgres.** It lets the full
+database-backed path be run without a GetXAPI key. It writes only the synthetic handle.

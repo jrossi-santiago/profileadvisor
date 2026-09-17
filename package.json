@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "db:seed": "tsx --tsconfig tsconfig.json scripts/seed-fixture.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",
@@ -30,6 +31,7 @@
     "drizzle-kit": "^0.31.10",
     "postcss": "^8.5.28",
     "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "vitest": "^5.0.1"
   }

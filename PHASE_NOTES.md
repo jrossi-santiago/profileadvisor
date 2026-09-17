@@ -59,15 +59,27 @@ Append one section per phase: what shipped, what broke, keys required, remaining
   banners had made the disclosure unreadable
 
 **Keys required** — `GETXAPI_KEY`, `XAI_API_KEY` (or `OPENAI_API_KEY`), `DATABASE_URL` +
-`DIRECT_DATABASE_URL`. None were available in the build environment, so everything below is
-untested against live services.
+`DIRECT_DATABASE_URL`.
 
-**Not yet verified — needs keys**
+**Database path verified (2026-09-17, local Postgres 16)**
+- `pnpm db:migrate` applies `0000_thin_microbe.sql` cleanly: 6 tables, 11 indexes
+- 9 integration tests in `store.integration.test.ts` pass against real Postgres — handle
+  canonicalization, idempotent profile re-ingest, metrics refresh on tweet conflict, PersonaCard
+  jsonb round-trip, newest-first ordering with limit, thread + injected-id persistence, cost ledger
+- `pnpm db:seed` then `/t/testfounder` renders from the database with no fixture fallback
+- Full suite with a database: 105 passed. Without one: 96 passed, 9 skipped.
+
+**Still not verified — needs API keys**
 - Any real ingest. The client matches the documented shapes but has never seen a live response.
 - Model ids (`grok-4`, `grok-4-fast`) are placeholder defaults, not confirmed against an account.
 - The three BUILD.md acceptance checks that need a live model: do three handles feel distinct
   within 5 messages; does the model say "no public take" off-topic; is the voice non-generic.
-- `db:migrate` against a real Postgres.
+
+**Sandbox reachability (checked 2026-09-17)**
+- `api.getxapi.com` and `api.x.ai` both return 401 to an unauthenticated request, so HTTPS egress
+  works and only the keys are missing — a live ingest and a live chat could run from here.
+- Raw Postgres TCP to a Supabase pooler host is blocked from this sandbox. That does not affect
+  Vercel; it only means local runs here must use a local Postgres.
 
 **Known gaps / carried into Phase 2**
 - Tweet cap is 100 and `user/tweets_and_replies` is not pulled yet
